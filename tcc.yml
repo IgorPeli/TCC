@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: VPC e Subnets organizadas por camadas (Web, Aplicação, Banco de Dados)
+Description: VPC e Subnets organizadas por camadas (Web, Aplicacao, Banco de Dados)
 
 Resources:
 
@@ -72,13 +72,14 @@ Resources:
       Tags:
         - Key: Name
           Value: DBPrivateSubnetB
-  
+
   TCCIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
           Value: TCC-InternetGateway
+
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -112,13 +113,52 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref RouterTableIGW
 
+  NatEIP:
+    Type: AWS::EC2::EIP
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: TCC-NATGW
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppPrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppPrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
   SGALB:
     Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Permitir tráfego HTTP de entrada para o ALB
+    Properties:
+      GroupDescription: Permitir trafego HTTP de entrada para o ALB
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - ipProtocol: tcp
+        - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
@@ -129,13 +169,13 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: ALB-SG                        
-  
+          Value: ALB-SG
+
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
       Name: TCCALB
-      Scheme: internet-facing  
+      Scheme: internet-facing
       Type: application
       IpAddressType: ipv4
       Subnets:
@@ -153,7 +193,7 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Subnets para Aurora Serverless v2 
+      DBSubnetGroupDescription: Subnets para Aurora Serverless v2
       SubnetIds:
         - !Ref DBPrivateSubnetA
         - !Ref DBPrivateSubnetB
@@ -161,16 +201,16 @@ Resources:
         - Key: Name
           Value: SubnetDB
 
-  DBSG:
+  APPSG:
     Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Permitir trafégo apenas da própria VPC
+    Properties:
+      GroupDescription: Security group do ECS
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - ipProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId: !Ref APPSG # SG do Fargate
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref SGALB
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: 0
@@ -178,20 +218,39 @@ Resources:
           CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
-          Value: DB-SG                  
-  
+          Value: APP-SG
+
+  DBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permitir trafego apenas da propria VPC
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref APPSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: DB-SG
+
   AuroraCluster:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora-mysql
       EngineMode: provisioned
-      EngineVersion: "8.0.mysql_aurora.3.03.0" # use uma versão compatível
+      EngineVersion: "8.0.mysql_aurora.3.04.2"
       DatabaseName: wordpress
-      MasterUsername: !Ref WordPressDataBaseUser
-      MasterUserPassword: !Ref WordPressDatabasePassWord
+      MasterUsername: wp_user1
+      MasterUserPassword: wpadmin1
       DBSubnetGroupName: !Ref DBSubnetGroup
       VpcSecurityGroupIds:
-      - !Ref DBSG
+        - !Ref DBSG
       ServerlessV2ScalingConfiguration:
         MinCapacity: 0.5
         MaxCapacity: 1.0
@@ -199,26 +258,9 @@ Resources:
       StorageEncrypted: true
       DeletionProtection: false
       Tags:
-      - Key: Name
-        Value: Aurora-TCC
+        - Key: Name
+          Value: Aurora-TCC
 
-
-  WordPressDataBaseUser:
-    Description: Usuário do Banco de Dados RDS Aurora Serveless V2
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: /wordpress/db/user
-      Type: String
-      Value: admin
-
-  WordPressDatabasePassWord:
-    Description: Senha do Usuário do Banco de Dados RDS Aurora Serveless V2
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: /wordpress/db/password
-      Type: String
-      Value: admin
-  
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -237,58 +279,40 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+  CloudwatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/wordpress
+      RetentionInDays: 7
 
   WordPressTaskDefinition:
     Type: AWS::ECS::TaskDefinition
+    DependsOn: AuroraCluster
     Properties:
       RequiresCompatibilities:
-      - FARGATE
+        - FARGATE
       Cpu: 512
       Memory: 1024
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
       ContainerDefinitions:
-      - Name: wordpress
-        Image: public.ecr.aws/bitnami/wordpress:latest
-        PortMappings:
-        - ContainerPort: 80
-        Environment:
-        - Name: WORDPRESS_DATABASE_HOST
-          Value: !GetAtt AuroraCluster.Endpoint.Address
-        - Name: WORDPRESS_DATABASE_PORT_NUMBER
-          Value: '3306'
-        - Name: WORDPRESS_DATABASE_NAME
-          Value: wordpress
-        Secrets:
-        - Name: WordPressDataBaseUser
-          ValueFrom: !Ref WordPressDataBaseUser
-        - Name: WordPressDatabasePassWord
-          ValueFrom: !Ref WordPressDatabasePassWord
-        LogConfiguration:
-          LogDriver: awslogs
-          Options:
-            awslogs-group: /ecs/wordpress
-            awslogs-region: !Ref AWS::Region
-            awslogs-stream-prefix: wordpress       
-  
-  APPSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupDescription: Security group do ECS
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - ipProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          SourceSecurityGroupId: !Ref SGALB # SG do Application Load Balancer
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: 0
-          ToPort: 0
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: APP-SG
+        - Name: wordpress
+          Image: public.ecr.aws/bitnami/wordpress:latest
+          PortMappings:
+            - ContainerPort: 80
+          Environment:
+            - Name: WORDPRESS_DATABASE_HOST
+              Value: !GetAtt AuroraCluster.Endpoint.Address
+            - Name: WORDPRESS_DATABASE_PORT_NUMBER
+              Value: '3306'
+            - Name: WORDPRESS_DATABASE_NAME
+              Value: wordpress
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/wordpress
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: wordpress
 
   WordPressTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -306,7 +330,7 @@ Resources:
       Tags:
         - Key: Name
           Value: WordPress-TG
-  
+
   ALBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
@@ -319,6 +343,10 @@ Resources:
 
   WordPressService:
     Type: AWS::ECS::Service
+    DependsOn:
+      - ALB
+      - ALBListener
+      - WordPressTargetGroup
     Properties:
       Cluster: !Ref ECSCluster
       LaunchType: FARGATE
@@ -336,10 +364,3 @@ Resources:
         - ContainerName: wordpress
           ContainerPort: 80
           TargetGroupArn: !Ref WordPressTargetGroup
-
-
-
-
-          
-
-
