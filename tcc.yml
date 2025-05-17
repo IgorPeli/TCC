@@ -33,7 +33,7 @@ Resources:
         - Key: Name
           Value: PublicSubnetB
 
-  APP-PrivateSubnetA:
+  AppPrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
@@ -41,9 +41,9 @@ Resources:
       CidrBlock: 10.16.32.0/20
       Tags:
         - Key: Name
-          Value: APP-PrivateSubnetA
+          Value: AppPrivateSubnetA
 
-  APP-PrivateSubnetB:
+  AppPrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
@@ -51,9 +51,9 @@ Resources:
       CidrBlock: 10.16.48.0/20
       Tags:
         - Key: Name
-          Value: APP-PrivateSubnetB
+          Value: AppPrivateSubnetB
 
-  DB-PrivateSubnetA:
+  DBPrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
@@ -61,9 +61,9 @@ Resources:
       CidrBlock: 10.16.64.0/20
       Tags:
         - Key: Name
-          Value: DB-PrivateSubnetA
+          Value: DBPrivateSubnetA
 
-  DB-PrivateSubnetB:
+  DBPrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
@@ -71,9 +71,9 @@ Resources:
       CidrBlock: 10.16.80.0/20
       Tags:
         - Key: Name
-          Value: DB-PrivateSubnetB
+          Value: DBPrivateSubnetB
   
-  TCC-IGW:
+  TCCIGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
@@ -83,7 +83,7 @@ Resources:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC
-      InternetGatewayId: !Ref TCC-IGW
+      InternetGatewayId: !Ref TCCIGW
 
   RouterTableIGW:
     Type: AWS::EC2::RouteTable
@@ -91,14 +91,14 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: TCC-RT
+          Value: TCCRT
 
   RouteToInternet:
     Type: AWS::EC2::Route
     Properties:
       RouteTableId: !Ref RouterTableIGW
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref TCC-IGW
+      GatewayId: !Ref TCCIGW
 
   PublicSubnetARouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -112,7 +112,7 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref RouterTableIGW
 
-  SG-ALB:
+  SGALB:
     Type: AWS::EC2::SecurityGroup
     Properties: 
       GroupDescription: Permitir tráfego HTTP de entrada para o ALB
@@ -134,7 +134,7 @@ Resources:
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: TCC-ALB
+      Name: TCCALB
       Scheme: internet-facing  
       Type: application
       IpAddressType: ipv4
@@ -142,26 +142,26 @@ Resources:
         - !Ref PublicSubnetA
         - !Ref PublicSubnetB
       SecurityGroups:
-        - !Ref SG-ALB
+        - !Ref SGALB
       LoadBalancerAttributes:
         - Key: idle_timeout.timeout_seconds
           Value: '60'
       Tags:
         - Key: Name
-          Value: TCC-ALB
+          Value: TCCALB
 
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnets para Aurora Serverless v2 
       SubnetIds:
-        - !Ref DB-PrivateSubnetA
-        - !Ref DB-PrivateSubnetB
+        - !Ref DBPrivateSubnetA
+        - !Ref DBPrivateSubnetB
       Tags:
         - Key: Name
           Value: SubnetDB
 
-  DB-SG:
+  DBSG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
       GroupDescription: Permitir trafégo apenas da própria VPC
@@ -170,7 +170,7 @@ Resources:
         - ipProtocol: tcp
           FromPort: 3306
           ToPort: 3306
-          SourceSecurityGroupId: !Ref SG-APP # SG do Fargate
+          SourceSecurityGroupId: !Ref APPSG # SG do Fargate
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: 0
@@ -187,11 +187,11 @@ Resources:
       EngineMode: provisioned
       EngineVersion: "8.0.mysql_aurora.3.03.0" # use uma versão compatível
       DatabaseName: wordpress
-      MasterUsername: !Ref WORDPRESS_DATABASE_USER
-      MasterUserPassword: !Ref WORDPRESS_DATABASE_PASSWORD
+      MasterUsername: !Ref WordPressDataBaseUser
+      MasterUserPassword: !Ref WordPressDatabasePassWord
       DBSubnetGroupName: !Ref DBSubnetGroup
       VpcSecurityGroupIds:
-      - !Ref DB-SG
+      - !Ref DBSG
       ServerlessV2ScalingConfiguration:
         MinCapacity: 0.5
         MaxCapacity: 1.0
@@ -203,7 +203,7 @@ Resources:
         Value: Aurora-TCC
 
 
-  WORDPRESS_DATABASE_USER:
+  WordPressDataBaseUser:
     Description: Usuário do Banco de Dados RDS Aurora Serveless V2
     Type: AWS::SSM::Parameter
     Properties:
@@ -211,7 +211,7 @@ Resources:
       Type: String
       Value: admin
 
-  WORDPRESS_DATABASE_PASSWORD:
+  WordPressDatabasePassWord:
     Description: Senha do Usuário do Banco de Dados RDS Aurora Serveless V2
     Type: AWS::SSM::Parameter
     Properties:
@@ -234,9 +234,9 @@ Resources:
             Principal:
               Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
-    ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-      - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
 
   WordPressTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -260,10 +260,10 @@ Resources:
         - Name: WORDPRESS_DATABASE_NAME
           Value: wordpress
         Secrets:
-        - Name: WORDPRESS_DATABASE_USER
-          ValueFrom: !Ref WORDPRESS_DATABASE_USER
-        - Name: WORDPRESS_DATABASE_PASSWORD
-          ValueFrom: !Ref WORDPRESS_DATABASE_PASSWORD
+        - Name: WordPressDataBaseUser
+          ValueFrom: !Ref WordPressDataBaseUser
+        - Name: WordPressDatabasePassWord
+          ValueFrom: !Ref WordPressDatabasePassWord
         LogConfiguration:
           LogDriver: awslogs
           Options:
@@ -271,7 +271,7 @@ Resources:
             awslogs-region: !Ref AWS::Region
             awslogs-stream-prefix: wordpress       
   
-  APP-SG:
+  APPSG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
       GroupDescription: Security group do ECS
@@ -280,7 +280,7 @@ Resources:
         - ipProtocol: tcp
           FromPort: 80
           ToPort: 80
-          SourceSecurityGroupId: !Ref SG-ALB # SG do Application Load Balancer
+          SourceSecurityGroupId: !Ref SGALB # SG do Application Load Balancer
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: 0
@@ -328,10 +328,10 @@ Resources:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
           Subnets:
-            - !Ref APP-PrivateSubnetA
-            - !Ref APP-PrivateSubnetB
+            - !Ref AppPrivateSubnetA
+            - !Ref AppPrivateSubnetB
           SecurityGroups:
-            - !Ref APP-SG
+            - !Ref APPSG
       LoadBalancers:
         - ContainerName: wordpress
           ContainerPort: 80
