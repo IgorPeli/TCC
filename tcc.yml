@@ -193,7 +193,7 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Subnets para Aurora Serverless v2
+      DBSubnetGroupDescription: Subnets para Aurora Provisionado
       SubnetIds:
         - !Ref DBPrivateSubnetA
         - !Ref DBPrivateSubnetB
@@ -243,7 +243,6 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora-mysql
-      EngineMode: provisioned
       EngineVersion: "8.0.mysql_aurora.3.04.2"
       DatabaseName: wordpress
       MasterUsername: wp_user1
@@ -251,15 +250,20 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DBSG
-      ServerlessV2ScalingConfiguration:
-        MinCapacity: 0.5
-        MaxCapacity: 1.0
       BackupRetentionPeriod: 1
       StorageEncrypted: true
       DeletionProtection: false
       Tags:
         - Key: Name
           Value: Aurora-TCC
+
+  AuroraInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: db.r6g.large
+      Engine: aurora-mysql
+      PubliclyAccessible: false
 
   ECSCluster:
     Type: AWS::ECS::Cluster
@@ -279,6 +283,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
+
   CloudwatchLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -307,6 +312,21 @@ Resources:
               Value: '3306'
             - Name: WORDPRESS_DATABASE_NAME
               Value: wordpress
+            - Name: WORDPRESS_DATABASE_USER
+              Value: wp_user1
+            - Name: WORDPRESS_DATABASE_PASSWORD
+              Value: wpadmin1
+          Command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Esperando indefinidamente o banco de dados em $WORDPRESS_DATABASE_HOST:3306..."
+              until nc -z $WORDPRESS_DATABASE_HOST 3306; do
+                echo "Banco ainda indisponível, aguardando..."
+                sleep 5
+              done
+              echo "Banco disponível! Iniciando WordPress..."
+              exec /opt/bitnami/scripts/wordpress/entrypoint.sh /opt/bitnami/scripts/wordpress/start.sh
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -322,9 +342,13 @@ Resources:
       Protocol: HTTP
       TargetType: ip
       VpcId: !Ref VPC
-      HealthCheckPath: /
+      HealthCheckPath: /wp-login.php
       HealthCheckPort: traffic-port
       HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 20
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
       Matcher:
         HttpCode: 200-399
       Tags:
@@ -364,3 +388,7 @@ Resources:
         - ContainerName: wordpress
           ContainerPort: 80
           TargetGroupArn: !Ref WordPressTargetGroup
+Outputs:
+  ALBDNSName:
+    Description: URL do Load Balancer (acesso ao WordPress)
+    Value: !GetAtt ALB.DNSName      
