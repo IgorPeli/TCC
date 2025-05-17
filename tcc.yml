@@ -157,9 +157,9 @@ Resources:
       SubnetIds:
         - !Ref DB-PrivateSubnetA
         - !Ref DB-PrivateSubnetB
-    Tags:
-      - Key: Name
-        Value: SubnetDB
+      Tags:
+        - Key: Name
+          Value: SubnetDB
 
   DB-SG:
     Type: AWS::EC2::SecurityGroup
