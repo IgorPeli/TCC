@@ -208,8 +208,8 @@ Resources:
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 8080
+          ToPort: 8080
           SourceSecurityGroupId: !Ref SGALB
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -219,7 +219,7 @@ Resources:
       Tags:
         - Key: Name
           Value: APP-SG
-
+          
   DBSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -283,7 +283,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   CloudwatchLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
@@ -292,7 +292,9 @@ Resources:
 
   WordPressTaskDefinition:
     Type: AWS::ECS::TaskDefinition
-    DependsOn: AuroraCluster
+    DependsOn: 
+    - AuroraCluster
+    - AuroraInstance
     Properties:
       RequiresCompatibilities:
         - FARGATE
@@ -300,11 +302,12 @@ Resources:
       Memory: 1024
       NetworkMode: awsvpc
       ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSExecutionRole.Arn  
       ContainerDefinitions:
         - Name: wordpress
           Image: public.ecr.aws/bitnami/wordpress:latest
           PortMappings:
-            - ContainerPort: 80
+            - ContainerPort: 8080
           Environment:
             - Name: WORDPRESS_DATABASE_HOST
               Value: !GetAtt AuroraCluster.Endpoint.Address
@@ -316,23 +319,24 @@ Resources:
               Value: wp_user1
             - Name: WORDPRESS_DATABASE_PASSWORD
               Value: wpadmin1
-          Command:
-            - /bin/bash
-            - -c
-            - |
-              echo "Esperando indefinidamente o banco de dados em $WORDPRESS_DATABASE_HOST:3306..."
-              until nc -z $WORDPRESS_DATABASE_HOST 3306; do
-                echo "Banco ainda indisponível, aguardando..."
-                sleep 5
-              done
-              echo "Banco disponível! Iniciando WordPress..."
-              exec /opt/bitnami/scripts/wordpress/entrypoint.sh /opt/bitnami/scripts/wordpress/start.sh
+            - Name: NAMI_LOG_LEVEL
+              Value: trace
+            - Name: WORDPRESS_DATABASE_WAIT_TIMEOUT
+              Value: '180'  
+            - Name: BITNAMI_DEBUG
+              Value: 'true'
+            - Name: APACHE_LOG_LEVEL
+              Value: debug
+            - Name: APACHE_HTTP_PORT_NUMBER
+              Value: '8080'
+            - Name: APACHE_HTTP_ADDRESS
+              Value: '0.0.0.0'
           LogConfiguration:
             LogDriver: awslogs
             Options:
               awslogs-group: /ecs/wordpress
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: wordpress
+              awslogs-stream-prefix: wordpress   
 
   WordPressTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -342,13 +346,13 @@ Resources:
       Protocol: HTTP
       TargetType: ip
       VpcId: !Ref VPC
-      HealthCheckPath: /wp-login.php
+      HealthCheckPath: /
       HealthCheckPort: traffic-port
       HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 20
-      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 3
+      UnhealthyThresholdCount: 5
       Matcher:
         HttpCode: 200-399
       Tags:
@@ -371,10 +375,13 @@ Resources:
       - ALB
       - ALBListener
       - WordPressTargetGroup
+      - AuroraCluster
+      - AuroraInstance
     Properties:
       Cluster: !Ref ECSCluster
       LaunchType: FARGATE
       DesiredCount: 1
+      EnableExecuteCommand: true  
       TaskDefinition: !Ref WordPressTaskDefinition
       NetworkConfiguration:
         AwsvpcConfiguration:
@@ -386,9 +393,16 @@ Resources:
             - !Ref APPSG
       LoadBalancers:
         - ContainerName: wordpress
-          ContainerPort: 80
+          ContainerPort: 8080
           TargetGroupArn: !Ref WordPressTargetGroup
 Outputs:
   ALBDNSName:
     Description: URL do Load Balancer (acesso ao WordPress)
     Value: !GetAtt ALB.DNSName      
+  AuroraEndpoint:
+    Description: Endpoint de teste
+    Value: !GetAtt AuroraCluster.Endpoint.Address
+  VPCIP:
+    Description: IP DA VPC
+    Value: !GetAtt VPC.CidrBlock
+      
