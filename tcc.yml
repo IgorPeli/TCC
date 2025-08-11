@@ -193,7 +193,7 @@ Resources:
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: Subnets para Aurora Provisionado
+      DBSubnetGroupDescription: Subnets para Aurora 
       SubnetIds:
         - !Ref DBPrivateSubnetA
         - !Ref DBPrivateSubnetB
@@ -266,7 +266,7 @@ Resources:
       PubliclyAccessible: false
 
   ECSCluster:
-    Type: AWS::ECS::Cluster
+    Type: AWS::ECS::Cluste
     Properties:
       ClusterName: TCC-ECS-Cluster
 
@@ -342,7 +342,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: wordpress-tg
-      Port: 80
+      Port: 8080
       Protocol: HTTP
       TargetType: ip
       VpcId: !Ref VPC
@@ -380,7 +380,7 @@ Resources:
     Properties:
       Cluster: !Ref ECSCluster
       LaunchType: FARGATE
-      DesiredCount: 1
+      DesiredCount: 2
       EnableExecuteCommand: true  
       TaskDefinition: !Ref WordPressTaskDefinition
       NetworkConfiguration:
