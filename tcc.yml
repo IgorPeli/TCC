@@ -1,17 +1,66 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: VPC e Subnets organizadas por camadas (Web, Aplicacao, Banco de Dados)
+Description: Flask + ECS Fargate + ALB + RDS MySQL + S3 (uploads) via NAT
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: "Container (ECR)" }
+        Parameters: [ ECRImage ]
+      - Label: { default: "Banco de Dados (RDS MySQL)" }
+        Parameters: [ DBName, DBUser, DBPassword ]
+      - Label: { default: "Mídias (S3)" }
+        Parameters: [ MediaBucketName, MediaPrefix ]
+    ParameterLabels:
+      ECRImage:        { default: "URI da imagem no ECR" }
+      DBName:          { default: "Nome do Database" }
+      DBUser:          { default: "Usuário do DB" }
+      DBPassword:      { default: "Senha do DB" }
+      MediaBucketName: { default: "Bucket S3 (opcional)" }
+      MediaPrefix:     { default: "Prefixo no S3" }
+
+Parameters:
+  ECRImage:
+    Type: String
+    Default: 296601444721.dkr.ecr.us-east-2.amazonaws.com/tcc/flask:latest
+
+  DBName:
+    Type: String
+    Default: appdb
+    Description: Nome do database no RDS MySQL
+
+  DBUser:
+    Type: String
+    Default: appuser
+    Description: Usuário do DB
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    Description: Senha do DB (8-41 chars; não usar / " @ ou espaço)
+
+  MediaBucketName:
+    Type: String
+    Default: ""
+    Description: (Opcional) Nome do bucket S3 para mídias; em branco cria um padrão
+
+  MediaPrefix:
+    Type: String
+    Default: "uploads"
+    Description: Prefixo (caminho) para objetos no S3
+
+Conditions:
+  HasBucketName: !Not [ !Equals [ !Ref MediaBucketName, "" ] ]
 
 Resources:
 
+  # -------------------- VPC & Networking --------------------
   VPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.16.0.0/16
       EnableDnsSupport: true
       EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: TCC-VPC
+      Tags: [{ Key: Name, Value: TCC-VPC }]
 
   PublicSubnetA:
     Type: AWS::EC2::Subnet
@@ -19,9 +68,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.0.0/20
-      Tags:
-        - Key: Name
-          Value: PublicSubnetA
+      Tags: [{ Key: Name, Value: PublicSubnetA }]
 
   PublicSubnetB:
     Type: AWS::EC2::Subnet
@@ -29,9 +76,7 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.16.0/20
-      Tags:
-        - Key: Name
-          Value: PublicSubnetB
+      Tags: [{ Key: Name, Value: PublicSubnetB }]
 
   AppPrivateSubnetA:
     Type: AWS::EC2::Subnet
@@ -39,9 +84,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.32.0/20
-      Tags:
-        - Key: Name
-          Value: AppPrivateSubnetA
+      Tags: [{ Key: Name, Value: AppPrivateSubnetA }]
 
   AppPrivateSubnetB:
     Type: AWS::EC2::Subnet
@@ -49,9 +92,7 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.48.0/20
-      Tags:
-        - Key: Name
-          Value: AppPrivateSubnetB
+      Tags: [{ Key: Name, Value: AppPrivateSubnetB }]
 
   DBPrivateSubnetA:
     Type: AWS::EC2::Subnet
@@ -59,9 +100,7 @@ Resources:
       AvailabilityZone: !Select [0, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.64.0/20
-      Tags:
-        - Key: Name
-          Value: DBPrivateSubnetA
+      Tags: [{ Key: Name, Value: DBPrivateSubnetA }]
 
   DBPrivateSubnetB:
     Type: AWS::EC2::Subnet
@@ -69,297 +108,123 @@ Resources:
       AvailabilityZone: !Select [1, !GetAZs '']
       VpcId: !Ref VPC
       CidrBlock: 10.16.80.0/20
-      Tags:
-        - Key: Name
-          Value: DBPrivateSubnetB
+      Tags: [{ Key: Name, Value: DBPrivateSubnetB }]
 
-  TCCIGW:
+  IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
-      Tags:
-        - Key: Name
-          Value: TCC-InternetGateway
+      Tags: [{ Key: Name, Value: TCC-IGW }]
 
-  AttachGateway:
+  AttachIGW:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       VpcId: !Ref VPC
-      InternetGatewayId: !Ref TCCIGW
+      InternetGatewayId: !Ref IGW
 
-  RouterTableIGW:
+  PublicRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: TCCRT
+      Tags: [{ Key: Name, Value: Public-RT }]
 
-  RouteToInternet:
+  PublicDefaultRoute:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref RouterTableIGW
+      RouteTableId: !Ref PublicRT
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref TCCIGW
+      GatewayId: !Ref IGW
 
-  PublicSubnetARouteTableAssociation:
+  AssocPublicA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnetA
-      RouteTableId: !Ref RouterTableIGW
+      RouteTableId: !Ref PublicRT
 
-  PublicSubnetBRouteTableAssociation:
+  AssocPublicB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnetB
-      RouteTableId: !Ref RouterTableIGW
+      RouteTableId: !Ref PublicRT
 
   NatEIP:
     Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
 
-  NATGateway:
+  NATGW:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatEIP.AllocationId
       SubnetId: !Ref PublicSubnetA
-      Tags:
-        - Key: Name
-          Value: TCC-NATGW
+      Tags: [{ Key: Name, Value: NATGW }]
 
-  PrivateRouteTable:
+  PrivateRT:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: PrivateRouteTable
+      Tags: [{ Key: Name, Value: Private-RT }]
 
-  PrivateRoute:
+  PrivateDefaultRoute:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRT
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway
+      NatGatewayId: !Ref NATGW
 
-  PrivateSubnetARouteTableAssociation:
+  AssocAppA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref AppPrivateSubnetA
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRT
 
-  PrivateSubnetBRouteTableAssociation:
+  AssocAppB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref AppPrivateSubnetB
-      RouteTableId: !Ref PrivateRouteTable
+      RouteTableId: !Ref PrivateRT
 
+  AssocDBA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBPrivateSubnetA
+      RouteTableId: !Ref PrivateRT
+
+  AssocDBB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBPrivateSubnetB
+      RouteTableId: !Ref PrivateRT
+
+  # -------------------- ALB --------------------
   SGALB:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Permitir trafego HTTP de entrada para o ALB
+      GroupDescription: ALB HTTP
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
       SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: 0
-          ToPort: 0
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: ALB-SG
+        - { IpProtocol: -1, FromPort: 0, ToPort: 0, CidrIp: 0.0.0.0/0 }
 
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: TCCALB
       Scheme: internet-facing
       Type: application
-      IpAddressType: ipv4
-      Subnets:
-        - !Ref PublicSubnetA
-        - !Ref PublicSubnetB
-      SecurityGroups:
-        - !Ref SGALB
-      LoadBalancerAttributes:
-        - Key: idle_timeout.timeout_seconds
-          Value: '60'
-      Tags:
-        - Key: Name
-          Value: TCCALB
+      Subnets: [ !Ref PublicSubnetA, !Ref PublicSubnetB ]
+      SecurityGroups: [ !Ref SGALB ]
 
-  DBSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Subnets para Aurora 
-      SubnetIds:
-        - !Ref DBPrivateSubnetA
-        - !Ref DBPrivateSubnetB
-      Tags:
-        - Key: Name
-          Value: SubnetDB
-
-  APPSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group do ECS
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          SourceSecurityGroupId: !Ref SGALB
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: 0
-          ToPort: 0
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: APP-SG
-          
-  DBSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Permitir trafego apenas da propria VPC
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId: !Ref APPSG
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: 0
-          ToPort: 0
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: DB-SG
-
-  AuroraCluster:
-    Type: AWS::RDS::DBCluster
-    Properties:
-      Engine: aurora-mysql
-      EngineVersion: "8.0.mysql_aurora.3.04.2"
-      DatabaseName: wordpress
-      MasterUsername: wp_user1
-      MasterUserPassword: wpadmin1
-      DBSubnetGroupName: !Ref DBSubnetGroup
-      VpcSecurityGroupIds:
-        - !Ref DBSG
-      BackupRetentionPeriod: 1
-      StorageEncrypted: true
-      DeletionProtection: false
-      Tags:
-        - Key: Name
-          Value: Aurora-TCC
-
-  AuroraInstance:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      DBClusterIdentifier: !Ref AuroraCluster
-      DBInstanceClass: db.r6g.large
-      Engine: aurora-mysql
-      PubliclyAccessible: false
-
-  ECSCluster:
-    Type: AWS::ECS::Cluste
-    Properties:
-      ClusterName: TCC-ECS-Cluster
-
-  ECSExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ecs-tasks.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-  CloudwatchLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /ecs/wordpress
-      RetentionInDays: 7
-
-  WordPressTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    DependsOn: 
-    - AuroraCluster
-    - AuroraInstance
-    Properties:
-      RequiresCompatibilities:
-        - FARGATE
-      Cpu: 512
-      Memory: 1024
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
-      TaskRoleArn: !GetAtt ECSExecutionRole.Arn  
-      ContainerDefinitions:
-        - Name: wordpress
-          Image: public.ecr.aws/bitnami/wordpress:latest
-          PortMappings:
-            - ContainerPort: 8080
-          Environment:
-            - Name: WORDPRESS_DATABASE_HOST
-              Value: !GetAtt AuroraCluster.Endpoint.Address
-            - Name: WORDPRESS_DATABASE_PORT_NUMBER
-              Value: '3306'
-            - Name: WORDPRESS_DATABASE_NAME
-              Value: wordpress
-            - Name: WORDPRESS_DATABASE_USER
-              Value: wp_user1
-            - Name: WORDPRESS_DATABASE_PASSWORD
-              Value: wpadmin1
-            - Name: NAMI_LOG_LEVEL
-              Value: trace
-            - Name: WORDPRESS_DATABASE_WAIT_TIMEOUT
-              Value: '180'  
-            - Name: BITNAMI_DEBUG
-              Value: 'true'
-            - Name: APACHE_LOG_LEVEL
-              Value: debug
-            - Name: APACHE_HTTP_PORT_NUMBER
-              Value: '8080'
-            - Name: APACHE_HTTP_ADDRESS
-              Value: '0.0.0.0'
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: /ecs/wordpress
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: wordpress   
-
-  WordPressTargetGroup:
+  TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: wordpress-tg
-      Port: 8080
-      Protocol: HTTP
-      TargetType: ip
       VpcId: !Ref VPC
-      HealthCheckPath: /
-      HealthCheckPort: traffic-port
-      HealthCheckProtocol: HTTP
-      HealthCheckIntervalSeconds: 30
-      HealthCheckTimeoutSeconds: 10
-      HealthyThresholdCount: 2
-      UnhealthyThresholdCount: 5
-      Matcher:
-        HttpCode: 200-399
-      Tags:
-        - Key: Name
-          Value: WordPress-TG
+      Protocol: HTTP
+      Port: 8080
+      TargetType: ip
+      HealthCheckPath: /healthcheck
+      Matcher: { HttpCode: 200-399 }
 
-  ALBListener:
+  Listener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Properties:
       LoadBalancerArn: !Ref ALB
@@ -367,42 +232,207 @@ Resources:
       Protocol: HTTP
       DefaultActions:
         - Type: forward
-          TargetGroupArn: !Ref WordPressTargetGroup
+          TargetGroupArn: !Ref TargetGroup
 
-  WordPressService:
+  # -------------------- S3 (uploads) --------------------
+  MediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !If
+        - HasBucketName
+        - !Ref MediaBucketName
+        - !Sub tcc-flask-media-${AWS::AccountId}-${AWS::Region}
+      VersioningConfiguration: { Status: Enabled }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  MediaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub arn:aws:s3:::${MediaBucket}
+              - !Sub arn:aws:s3:::${MediaBucket}/*
+            Condition:
+              Bool: { aws:SecureTransport: "false" }
+
+  # -------------------- ECS & IAM --------------------
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: flask-ecs-cluster
+
+  APPSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: App SG (recebe do ALB, sai via NAT)
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref SGALB
+      SecurityGroupEgress:
+        - { IpProtocol: -1, FromPort: 0, ToPort: 0, CidrIp: 0.0.0.0/0 }
+
+  ECSExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3UploadsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ListOnBucketPrefix
+                Effect: Allow
+                Action: ["s3:ListBucket"]
+                Resource: !Sub arn:aws:s3:::${MediaBucket}
+                Condition:
+                  StringLike:
+                    s3:prefix: [ !Sub "${MediaPrefix}/*" ]
+              - Sid: RWOnPrefix
+                Effect: Allow
+                Action: ["s3:GetObject","s3:PutObject","s3:DeleteObject"]
+                Resource: !Sub arn:aws:s3:::${MediaBucket}/${MediaPrefix}/*
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/flask
+      RetentionInDays: 7
+
+  # -------------------- RDS (MySQL clássico) --------------------
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets para RDS MySQL
+      SubnetIds: [ !Ref DBPrivateSubnetA, !Ref DBPrivateSubnetB ]
+
+  DBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Acesso ao RDS MySQL a partir do ECS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 3306, ToPort: 3306, SourceSecurityGroupId: !Ref APPSG }
+      SecurityGroupEgress:
+        - { IpProtocol: -1, FromPort: 0, ToPort: 0, CidrIp: 0.0.0.0/0 }
+
+  MySQLInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: mysql
+      EngineVersion: "8.0.42"           # deixa a default 8.0.x da região; pode remover se preferir
+      DBInstanceClass: db.t4g.micro   # free tier; troque aqui se quiser mais recurso
+      AllocatedStorage: 20
+      StorageType: gp3
+      MultiAZ: false
+      PubliclyAccessible: false
+      DeletionProtection: false
+      BackupRetentionPeriod: 1
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBName: !Ref DBName
+      VPCSecurityGroups: [ !Ref DBSG ]
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      EnablePerformanceInsights: false
+
+  # -------------------- Task Definition & Service --------------------
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: [ MySQLInstance ]
+    Properties:
+      RequiresCompatibilities: [ FARGATE ]
+      Cpu: 512
+      Memory: 1024
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: flask
+          Image: !Ref ECRImage
+          PortMappings:
+            - ContainerPort: 8080
+          Environment:
+            - { Name: DB_HOST,  Value: !GetAtt MySQLInstance.Endpoint.Address }
+            - { Name: DB_NAME,  Value: !Ref DBName }
+            - { Name: DB_USER,  Value: !Ref DBUser }
+            - { Name: DB_PASSWORD, Value: !Ref DBPassword }
+            - { Name: S3_BUCKET, Value: !Ref MediaBucket }
+            - { Name: S3_PREFIX, Value: !Ref MediaPrefix }
+            - { Name: AWS_REGION, Value: !Ref AWS::Region }
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/flask
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: app
+          HealthCheck:
+            Command: ["CMD-SHELL", "curl -fsS http://localhost:8080/healthcheck || exit 1"]
+            Interval: 30
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 10
+
+  Service:
     Type: AWS::ECS::Service
-    DependsOn:
-      - ALB
-      - ALBListener
-      - WordPressTargetGroup
-      - AuroraCluster
-      - AuroraInstance
+    DependsOn: [ ALB, Listener80, TargetGroup ]
     Properties:
       Cluster: !Ref ECSCluster
       LaunchType: FARGATE
       DesiredCount: 2
-      EnableExecuteCommand: true  
-      TaskDefinition: !Ref WordPressTaskDefinition
+      EnableExecuteCommand: true
+      TaskDefinition: !Ref TaskDefinition
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: DISABLED
-          Subnets:
-            - !Ref AppPrivateSubnetA
-            - !Ref AppPrivateSubnetB
-          SecurityGroups:
-            - !Ref APPSG
+          Subnets: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
+          SecurityGroups: [ !Ref APPSG ]
       LoadBalancers:
-        - ContainerName: wordpress
+        - ContainerName: flask
           ContainerPort: 8080
-          TargetGroupArn: !Ref WordPressTargetGroup
+          TargetGroupArn: !Ref TargetGroup
+
 Outputs:
-  ALBDNSName:
-    Description: URL do Load Balancer (acesso ao WordPress)
-    Value: !GetAtt ALB.DNSName      
-  AuroraEndpoint:
-    Description: Endpoint de teste
-    Value: !GetAtt AuroraCluster.Endpoint.Address
-  VPCIP:
-    Description: IP DA VPC
-    Value: !GetAtt VPC.CidrBlock
-      
+  ALBDNS:
+    Description: URL pública do ALB
+    Value: !GetAtt ALB.DNSName
+  MySQLEndpoint:
+    Description: Endpoint do RDS MySQL (host para o app)
+    Value: !GetAtt MySQLInstance.Endpoint.Address
+  MediaBucketOut:
+    Description: Bucket S3 das imagens
+    Value: !Ref MediaBucket
