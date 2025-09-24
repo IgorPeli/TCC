@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Flask + ECS Fargate + ALB + RDS MySQL + S3 (uploads) via NAT
+Description: Flask + ECS Fargate + ALB + RDS MySQL + S3 (uploads) via NAT + Endpoints (HA por AZ)
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -146,54 +146,149 @@ Resources:
       SubnetId: !Ref PublicSubnetB
       RouteTableId: !Ref PublicRT
 
-  NatEIP:
+  NatEIPA:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
 
-  NATGW:
+  NatEIPB:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NATGWA:
     Type: AWS::EC2::NatGateway
     Properties:
-      AllocationId: !GetAtt NatEIP.AllocationId
+      AllocationId: !GetAtt NatEIPA.AllocationId
       SubnetId: !Ref PublicSubnetA
-      Tags: [{ Key: Name, Value: NATGW }]
+      Tags: [{ Key: Name, Value: NATGW-A }]
 
-  PrivateRT:
+  NATGWB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIPB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+      Tags: [{ Key: Name, Value: NATGW-B }]
+
+  # Duas Route Tables privadas (uma por AZ)
+  PrivateRTA:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
-      Tags: [{ Key: Name, Value: Private-RT }]
+      Tags: [{ Key: Name, Value: Private-RT-A }]
 
-  PrivateDefaultRoute:
+  PrivateRTB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags: [{ Key: Name, Value: Private-RT-B }]
+
+  PrivateDefaultRouteA:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref PrivateRT
+      RouteTableId: !Ref PrivateRTA
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGW
+      NatGatewayId: !Ref NATGWA
 
-  AssocAppA:
+  PrivateDefaultRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRTB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGWB
+
+  # Associações corretas por AZ
+  AssocAppAtoRTA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref AppPrivateSubnetA
-      RouteTableId: !Ref PrivateRT
+      RouteTableId: !Ref PrivateRTA
 
-  AssocAppB:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref AppPrivateSubnetB
-      RouteTableId: !Ref PrivateRT
-
-  AssocDBA:
+  AssocDBAtoRTA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref DBPrivateSubnetA
-      RouteTableId: !Ref PrivateRT
+      RouteTableId: !Ref PrivateRTA
 
-  AssocDBB:
+  AssocAppBtoRTB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppPrivateSubnetB
+      RouteTableId: !Ref PrivateRTB
+
+  AssocDBBtoRTB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref DBPrivateSubnetB
-      RouteTableId: !Ref PrivateRT
+      RouteTableId: !Ref PrivateRTB
+
+  # -------------------- VPC Endpoints (PrivateLink / Gateway) --------------------
+  # SG dedicado para os endpoints Interface (permite 443 vindo das tasks do app)
+  EndpointSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG para VPC Interface Endpoints (permite HTTPS do APPSG)
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref APPSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 0
+          CidrIp: 0.0.0.0/0
+      Tags: [{ Key: Name, Value: EndpointSG }]
+
+  # S3 - Gateway Endpoint (nas duas RTs privadas)
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds: [ !Ref PrivateRTA, !Ref PrivateRTB ]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "s3:*"
+            Resource: "*"
+
+  # ECR API - Interface
+  ECRApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.api
+      VpcEndpointType: Interface
+      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
+      SecurityGroupIds: [ !Ref EndpointSG ]
+      PrivateDnsEnabled: true
+
+  # ECR DKR - Interface
+  ECRDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.dkr
+      VpcEndpointType: Interface
+      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
+      SecurityGroupIds: [ !Ref EndpointSG ]
+      PrivateDnsEnabled: true
+
+  # CloudWatch Logs - Interface
+  LogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.logs
+      VpcEndpointType: Interface
+      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
+      SecurityGroupIds: [ !Ref EndpointSG ]
+      PrivateDnsEnabled: true
 
   # -------------------- ALB --------------------
   SGALB:
@@ -353,11 +448,11 @@ Resources:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: mysql
-      EngineVersion: "8.0.42"           # deixa a default 8.0.x da região; pode remover se preferir
-      DBInstanceClass: db.t4g.micro   # free tier; troque aqui se quiser mais recurso
+      EngineVersion: "8.0.42"
+      DBInstanceClass: db.t4g.micro
       AllocatedStorage: 20
       StorageType: gp3
-      MultiAZ: false
+      MultiAZ: true
       PubliclyAccessible: false
       DeletionProtection: false
       BackupRetentionPeriod: 1
@@ -425,7 +520,7 @@ Resources:
         - ContainerName: flask
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
-
+          
 Outputs:
   ALBDNS:
     Description: URL pública do ALB
