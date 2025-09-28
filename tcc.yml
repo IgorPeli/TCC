@@ -222,25 +222,6 @@ Resources:
       SubnetId: !Ref DBPrivateSubnetB
       RouteTableId: !Ref PrivateRTB
 
-  # -------------------- VPC Endpoints (PrivateLink / Gateway) --------------------
-  # SG dedicado para os endpoints Interface (permite 443 vindo das tasks do app)
-  EndpointSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: SG para VPC Interface Endpoints (permite HTTPS do APPSG)
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          SourceSecurityGroupId: !Ref APPSG
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          FromPort: 0
-          ToPort: 0
-          CidrIp: 0.0.0.0/0
-      Tags: [{ Key: Name, Value: EndpointSG }]
-
   # S3 - Gateway Endpoint (nas duas RTs privadas)
   S3GatewayEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -256,39 +237,6 @@ Resources:
             Principal: "*"
             Action: "s3:*"
             Resource: "*"
-
-  # ECR API - Interface
-  ECRApiEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.api
-      VpcEndpointType: Interface
-      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
-      SecurityGroupIds: [ !Ref EndpointSG ]
-      PrivateDnsEnabled: true
-
-  # ECR DKR - Interface
-  ECRDkrEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.ecr.dkr
-      VpcEndpointType: Interface
-      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
-      SecurityGroupIds: [ !Ref EndpointSG ]
-      PrivateDnsEnabled: true
-
-  # CloudWatch Logs - Interface
-  LogsEndpoint:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VPC
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.logs
-      VpcEndpointType: Interface
-      SubnetIds: [ !Ref AppPrivateSubnetA, !Ref AppPrivateSubnetB ]
-      SecurityGroupIds: [ !Ref EndpointSG ]
-      PrivateDnsEnabled: true
 
   # -------------------- ALB --------------------
   SGALB:
