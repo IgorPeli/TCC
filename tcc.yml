@@ -1,23 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Flask + ECS Fargate + ALB + RDS MySQL + S3 (uploads) via NAT + Endpoints (HA por AZ)
 
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label: { default: "Container (ECR)" }
-        Parameters: [ ECRImage ]
-      - Label: { default: "Banco de Dados (RDS MySQL)" }
-        Parameters: [ DBName, DBUser, DBPassword ]
-      - Label: { default: "Mídias (S3)" }
-        Parameters: [ MediaBucketName, MediaPrefix ]
-    ParameterLabels:
-      ECRImage:        { default: "URI da imagem no ECR" }
-      DBName:          { default: "Nome do Database" }
-      DBUser:          { default: "Usuário do DB" }
-      DBPassword:      { default: "Senha do DB" }
-      MediaBucketName: { default: "Bucket S3 (opcional)" }
-      MediaPrefix:     { default: "Prefixo no S3" }
-
 Parameters:
   ECRImage:
     Type: String
@@ -285,15 +268,6 @@ Resources:
         - HasBucketName
         - !Ref MediaBucketName
         - !Sub tcc-flask-media-${AWS::AccountId}-${AWS::Region}
-      VersioningConfiguration: { Status: Enabled }
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
 
   MediaBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -309,8 +283,6 @@ Resources:
             Resource:
               - !Sub arn:aws:s3:::${MediaBucket}
               - !Sub arn:aws:s3:::${MediaBucket}/*
-            Condition:
-              Bool: { aws:SecureTransport: "false" }
 
   # -------------------- ECS & IAM --------------------
   ECSCluster:
@@ -401,17 +373,11 @@ Resources:
       AllocatedStorage: 20
       StorageType: gp3
       MultiAZ: true
-      PubliclyAccessible: false
-      DeletionProtection: false
-      BackupRetentionPeriod: 1
       MasterUsername: !Ref DBUser
       MasterUserPassword: !Ref DBPassword
       DBName: !Ref DBName
       VPCSecurityGroups: [ !Ref DBSG ]
       DBSubnetGroupName: !Ref DBSubnetGroup
-      AutoMinorVersionUpgrade: true
-      CopyTagsToSnapshot: true
-      EnablePerformanceInsights: false
 
   # -------------------- Task Definition & Service --------------------
   TaskDefinition:
@@ -468,14 +434,3 @@ Resources:
         - ContainerName: flask
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
-          
-Outputs:
-  ALBDNS:
-    Description: URL pública do ALB
-    Value: !GetAtt ALB.DNSName
-  MySQLEndpoint:
-    Description: Endpoint do RDS MySQL (host para o app)
-    Value: !GetAtt MySQLInstance.Endpoint.Address
-  MediaBucketOut:
-    Description: Bucket S3 das imagens
-    Value: !Ref MediaBucket

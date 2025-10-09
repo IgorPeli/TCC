@@ -1,32 +1,23 @@
-# Base oficial do Python (slim = menor)
 FROM python:3.11-slim
 
-# Boas práticas: logs sem buffer e pip sem cache
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Instala só o necessário e limpa os índices do apt pra reduzir a imagem
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Cria usuário não-root
 RUN useradd -m tccuser
 WORKDIR /app
 
-# Copia e instala dependências primeiro para aproveitar cache de camadas
 COPY requerimentos.txt .
 RUN pip install -r requerimentos.txt
 
-# Copia sua aplicação
 COPY app.py .
 
-# Dá posse dos arquivos ao usuário que vai rodar o app
 RUN chown -R tccuser:tccuser /app
 USER tccuser
 
-# Porta do serviço dentro do container (metadado)
 EXPOSE 8080
 
-# Sobe o Gunicorn (WSGI) apontando pro módulo e objeto Flask: app.py -> app
 CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "app:app"]
