@@ -1,0 +1,114 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% referencial.tex
+%
+% Modelo de arquivo para uso com a classe uvvTeX2, para a formatação de
+% trabalhos acadêmicos na Universidade Vila Velha (https://uvv.br).
+%
+% Para maiores informações, visite:
+%    https://github.com/uvv-computacao/uvvtex2
+%
+% Este modelo mostra como inserir o capítulo de introdução de sua monografia.
+% Basta informar o título e o label da introdução, e escrever o conteúdo.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Revisão Bibliográfica}
+\label{sec:revbib}
+
+A computação em nuvem representa uma mudança de paradigma em relação à forma como os recursos computacionais são oferecidos, utilizados e administrados. Diferentemente do modelo tradicional on-premises, em que a infraestrutura de TI é mantida fisicamente dentro das empresas, a computação em nuvem disponibiliza recursos sob demanda, acessíveis remotamente e com maior flexibilidade, elasticidade e otimização de custos \cite{nist2011}.
+
+\section{Computação em Nuvem}
+De acordo com o National Institute of Standards and Technology (NIST), a computação em nuvem é definida como “um modelo para permitir acesso ubíquo, conveniente e sob demanda a um conjunto compartilhado de recursos computacionais configuráveis [...] com esforço mínimo de gerenciamento” \cite{nist2011}. Esse conceito estabelece as bases para que organizações de diferentes segmentos considerem a nuvem como uma alternativa viável frente às limitações das infraestruturas tradicionais.
+
+Com o avanço das tecnologias de virtualização, provedores como Amazon Web Services (AWS), Microsoft Azure e Google Cloud Platform contribuíram para popularizar esse modelo, permitindo que empresas migrassem parte ou toda a sua infraestrutura para a nuvem. Isso possibilitou uma redução significativa na complexidade operacional, além de ganhos em agilidade e eficiência na implantação de aplicações e serviços \cite{googlecloud2024}.
+
+\section{A AWS como Provedora de Nuvem}
+A Amazon Web Services (AWS) é amplamente reconhecida como uma das principais plataformas de serviços em nuvem do mercado. Lançada em 2006, oferece soluções que abrangem desde infraestrutura como serviço (IaaS) até plataformas como serviço (PaaS), com foco em escalabilidade, segurança, resiliência, otimização de custos e rapidez no provisionamento \cite{awsdocs2024}.
+
+A documentação oficial da AWS oferece guias robustos para a construção de ambientes confiáveis, com destaque para o \textit{AWS Well-Architected Framework}, que orienta arquiteturas baseadas em cinco pilares: excelência operacional, segurança, confiabilidade, eficiência de desempenho e otimização de custos. Esse framework também aborda o modelo de responsabilidade compartilhada, o qual define claramente as obrigações do cliente e da AWS no gerenciamento dos recursos \cite{awswell2023}.
+
+\section{Desafios na Adoção da Nuvem}
+Apesar de suas vantagens, a adoção da computação em nuvem ainda apresenta desafios importantes. Entre eles, destacam-se os custos inesperados, a dependência do provedor, a complexidade na integração com sistemas legados e, sobretudo, a escassez de profissionais qualificados. Conforme aponta a Google Cloud (2024), a maior parte desses problemas pode ser minimizada com uma compreensão clara dos serviços oferecidos, um bom planejamento de arquitetura e o entendimento das responsabilidades de segurança, governança e custo \cite{googlecloud2024}.
+
+\section{A Escassez de Profissionais Qualificados}
+Um estudo recente publicado pela SoftwareOne (2024) revelou que 98\% das organizações enfrentam dificuldades em encontrar profissionais devidamente qualificados para atuar com soluções em nuvem. Esse déficit de mão de obra técnica impacta diretamente a capacidade das empresas em desenvolver arquiteturas bem estruturadas, escaláveis e seguras. Nesse cenário, soluções acessíveis, bem documentadas e alinhadas com boas práticas tornam-se fundamentais para orientar equipes com pouco conhecimento técnico, reduzindo riscos operacionais e custos associados à má configuração de ambientes \cite{softwareone2024}.
+
+
+\section{Região e VPC}Uma região na AWS representa uma localização geográfica física onde o provedor mantém múltiplos data centers isolados, conhecidos pelo nome de Zona de Disponibilidade \cite{techtarget2024regions}.
+
+Uma Virtual Private Cloud (VPC) é um espaço privado dentro de uma nuvem pública, no qual é possível provisionar e gerenciar recursos de forma isolada. Em outras palavras, trata-se de uma nuvem própria, configurada sobre a infraestrutura de um provedor, mas logicamente separada de outros ambientes. 
+
+A VPC oferece controle total sobre a topologia de rede, permitindo definir sub-redes, endereçamento IP, tabelas de rotas e políticas de segurança específicas, o que a torna ideal para hospedar aplicações com altos requisitos de segurança e personalização.
+Cada VPC é associada a uma região específica da nuvem, embora uma mesma região possa conter múltiplas VPCs distintas \cite{cloudflare2024vpc}.
+
+\section{Zonas de Disponibilidade e Subnet}As Zonas de Disponibilidade são distribuídas entre as regiões da AWS e operam de forma isolada entre si, o que proporciona maior resiliência e tolerância a falhas. É possível criar múltiplas Subnets dentro de uma mesma Zona de Disponibilidade, permitindo segmentações lógicas conforme as necessidades da aplicação \cite{aws2024az}.
+
+\section{Internet Gateway}Um Internet Gateway é um componente fundamental em arquiteturas de nuvem, atuando como o ponto de acesso entre uma rede privada virtual (VPC) e a internet pública. Tal recurso é altamente escalável por natureza e oferece suporte tanto ao tráfego IPv4 quanto IPv6. Vale destacar que não há custo associado à criação do IGW, sendo cobrados apenas os dados trafegados \cite{akamai2024internetgateway}.
+
+\section{Subnets Públicas}Uma subnet pública é aquela associada a uma tabela de rotas que possui uma rota direcionada ao Internet Gateway, permitindo acesso direto à internet. Essa configuração a torna publicamente acessível, porém mais exposta a riscos de segurança \cite{oracle2024topologia}.
+
+\section{Subnets Privadas}Em contraste, uma subnet privada não possui rotas para o Internet Gateway, sendo acessível apenas dentro da própria VPC. Essa limitação aumenta a segurança, restringindo a comunicação a recursos internos da nuvem \cite{oracle2024topologia}.
+
+\section{Tabela de Rotas}
+Uma \textbf{tabela de rotas} é uma coleção de regras (as \emph{rotas}) que dizem \emph{“para onde mandar o pacote”} a partir daquela subnet. Cada rota tem dois campos que importam no dia a dia: \textbf{destino} (um bloco CIDR) e \textbf{alvo} (o próximo salto) \cite{aws2024rt}.
+
+Em termos práticos, funciona assim: 
+\begin{itemize}
+  \item você \textbf{define-se o destino} (\texttt{10.0.0.0/16}, \texttt{0.0.0.0/0}, etc.);
+  \item você \textbf{aponta-se o alvo} (\emph{Internet Gateway}, \emph{NAT Gateway}, \emph{VPC Endpoint}, \emph{Transit Gateway}, \emph{VGW}, \emph{ENI} de uma instância, etc.);
+  \item se o pacote \emph{engloba} esse destino, \textbf{ele segue por esse alvo}. Se \emph{não} encaixar em nada mais específico, vale a rota \texttt{0.0.0.0/0} (a famosa \emph{default}).
+\end{itemize}
+
+Três regras de ouro:
+\begin{enumerate}
+  \item \textbf{Maior correspondência (longest prefix match)}: se há \texttt{10.16.0.0/16} e \texttt{10.16.32.0/20}, o tráfego para \texttt{10.16.32.x} usa o \texttt{/20} (mais específico).
+  \item \textbf{Uma subnet $\rightarrow$ uma tabela}: você associa \emph{uma} tabela de rotas por subnet (mas pode usar a mesma tabela em várias subnets). A tabela “principal” (main) vale como padrão para as subnets que não forem associadas explicitamente.
+  \item \textbf{Rota local automática:} toda nova route table inclui, por padrão, a rota para o CIDR da VPC. É ela que habilita a comunicação entre recursos dentro da VPC; não depende de IGW nem NAT e não pode ser removida.
+\end{enumerate}
+
+\section{IAM Roles}No ambiente da AWS, uma \textit{IAM Role} (função) é uma entidade que define um conjunto de permissões que podem ser temporariamente assumidas por serviços, usuários ou outros recursos dentro da própria conta. Uma Role não possui credenciais permanentes, em vez disso, fornece credenciais temporárias por meio de um mecanismo seguro de delegação de acesso \cite{marques2024iamrole}.
+
+\section{Container}Contêineres são uma tecnologia que permite o isolamento completo de ambientes de execução, assegurando que as aplicações neles executadas não interfiram desnecessariamente com outros processos ou sistemas. Essa abordagem é amplamente adotada para hospedar aplicações de todo tipo, oferecendo maior controle, portabilidade e segurança \cite{redhat2024containers}.
+
+Na AWS, os contêineres são gerenciados por meio do serviço ECS (Elastic Container Service), que permite duas modalidades de provisionamento: por meio de instâncias EC2 (Elastic Compute Cloud), onde o usuário é responsável pela gestão da infraestrutura subjacente; ou por meio do AWS Fargate, uma solução serverless em que a AWS gerencia automaticamente o provisionamento e a escala do ambiente de execução.
+
+\section{Tipos de Escalabilidade}A escalabilidade horizontal é geralmente mais recomendada em ambientes de nuvem por oferecer menor custo e maior granularidade em comparação à escalabilidade vertical. Enquanto a escalabilidade vertical consiste em aumentar os recursos (como CPU e memória) de uma única instância, a escalabilidade horizontal envolve a adição de múltiplas instâncias menores para distribuir a carga de trabalho. Essa abordagem permite um controle mais preciso sobre o consumo de recursos e facilita o balanceamento de carga entre as instâncias \cite{lucidchart2024escalabilidade}.
+
+
+\section{Cookies}Cookies são pequenos arquivos de texto armazenados no navegador de um usuário por sites que ele visita. Esses arquivos contêm informações que ajudam a identificar o usuário e suas preferências, como idioma, sessão ativa, produtos adicionados ao carrinho, entre outros \cite{kaspersky2024cookies}.
+
+\section{Balanceamento de Carga}Na camada de balanceamento público da arquitetura, é utilizado um mecanismo de balanceamento de carga com o objetivo de distribuir de forma eficiente o tráfego entre os contêineres da aplicação. Essa estratégia garante o uso otimizado dos recursos computacionais disponíveis, promovendo equilíbrio na carga de trabalho e contribuindo para a escalabilidade e alta disponibilidade do sistema \cite{cloudflare2024balancer}.
+
+\section{Firewalls}Complementarmente à arquitetura apresentada, faz-se necessário considerar os mecanismos de controle de tráfego utilizados na rede. Firewalls são sistemas de segurança que atuam como barreiras entre redes confiáveis e não confiáveis, controlando o tráfego de entrada e saída com base em regras predefinidas \cite{kaspersky2024firewall}. Seu objetivo é restringir acessos não autorizados e proteger os recursos internos da rede.
+
+\section{Firewall sem estado}Existem dois tipos principais de firewall: o firewall sem estado (stateless) e o firewall com estado (stateful). O primeiro realiza verificações simples, analisando pacotes individualmente com base em regras específicas configuradas pelo administrador. Nesse modelo, as regras de entrada e saída são independentes. Na AWS, esse tipo de firewall é representado pelas  Lista de controle de acesso à rede (NACLs), que operam no nível da subnet e aplicam regras explícitas para entrada e saída \cite{fortinet2024firewall}.
+
+\section{Firewall com estado}Uma limitação do modelo stateless está relacionada às portas efêmeras. Ao estabelecer uma conexão com uma rede privada, um dispositivo utiliza uma porta efêmera, um número de porta aleatório e temporário. Em sistemas Unix, essas portas geralmente variam entre 49152 e 65535, enquanto versões mais recentes do Windows adotam intervalos diferentes \cite{stackexchange2024ephemeralports}. Essa imprevisibilidade dificulta a definição de regras de resposta precisas em firewalls sem estado.
+
+Como solução, utiliza-se o firewall com estado (stateful), que é capaz de acompanhar o estado das conexões. Nesse modelo, ao permitir o tráfego de saída, a resposta de entrada correspondente é automaticamente autorizada, e vice-versa. Na AWS, essa abordagem é implementada por meio dos Grupos de Segurança, que operam no nível da instância e oferecem controle dinâmico e eficiente sobre o tráfego de rede \cite{fortinet2024firewall}.
+
+\section{NAT Gateway}O NAT Gateway funciona como um intermediário que permite que recursos localizados em sub-redes privadas acessem a internet de forma segura, mesmo sem um endereço IPv4 público atribuído diretamente.
+
+O \textit{NAT Gateway} impede conexões originadas da internet para dentro da VPC, permitindo apenas o tráfego de saída. Além disso, diversos contêineres podem compartilhar um mesmo NAT Gateway, que realiza o mapeamento das conexões de saída utilizando seu próprio endereço IP público \cite{google2024cloudnat}.
+
+O recurso funciona de forma semelhante a um “porteiro inteligente”, sendo capaz de identificar a origem e o destino das conexões de saída, garantindo que as respostas retornem corretamente ao recurso que originou a solicitação.
+
+\section{Target Group}O Target Group atua como um registro dinâmico dos contêineres em execução, permitindo que o Load Balancer saiba exatamente quais instâncias de tarefa estão disponíveis para receber requisições.
+
+Cada vez que uma nova tarefa do ECS é lançada, ela é automaticamente registrada no Target Group associado. Da mesma forma, quando uma tarefa é finalizada ou interrompida, sua remoção é refletida no grupo. Esse mecanismo garante que o balanceamento de carga funcione de maneira eficaz, contribuindo para a escalabilidade e a alta disponibilidade da aplicação de forma automatizada e transparente \cite{aws2024targetgroup}. 
+
+\section{Arquiteturas Escaláveis com ECS, RDS e S3}
+Para suportar aplicações web escaláveis e gerenciadas com baixo esforço operacional, a AWS oferece serviços como o Amazon Elastic Container Service (ECS) com Fargate, o Amazon Relational Database Service (RDS) e o Amazon Simple Storage Service (S3). O ECS com Fargate permite a execução de contêineres Docker sem necessidade de gerenciamento direto de servidores, abstraindo o sistema operacional e oferecendo escalabilidade automática. Essa abordagem é ideal para aplicações baseadas em microserviços, cuja imagem use um banco de dados relacional e armazenamento de objetos.
+
+O Amazon RDS, por sua vez, elimina tarefas administrativas como instalação e manutenção do banco de dados, além de abstrair a necessidade de gerenciamento da infraestrutura subjacente. Por ser um serviço DBaaS (Banco de Dados como Serviço), não exige a administração de servidores dedicados e oferece escalabilidade automática, alta disponibilidade e backups automatizados. Já o Amazon S3 atua como repositório de objetos, como imagens e arquivos de mídia, sendo uma solução altamente escalável, durável e com modelo de cobrança baseado no uso \cite{awsdocs2024}.
+
+\section{S3 Endpoint Gateway}
+O nosso armazenamento de objetos, Amazon Simple Storage Service (S3), não reside dentro da nossa VPC. O acesso padrão ocorre por endpoints público, isso causa um conflito, uma vez que não queremos que nossas aplicações sejam expostas.
+
+A AWS provê um serviço pensando nisso, onde é um canal privado que utilizamos para nos comunicarmos com o S3, sem a necessidade de passar pela internet pública, onde utilizamos o \cite{awsendpoint}.
+ 
+
+\section{Infraestrutura como Código(IaC)}A prática de \textit{Infraestrutura como Código} (IaC) refere-se à abordagem de provisionamento e gerenciamento de infraestrutura por meio de arquivos de configuração legíveis por máquina, em vez de processos manuais interativos. Essa estratégia permite que recursos como redes, servidores, bancos de dados e serviços de aplicação sejam definidos, versionados e implantados com a mesma facilidade e controle que um software tradicional \cite{microsoft2024iac}.
+
+Especialistas como Adrian Cantrill, referência internacional em formação técnica em AWS, reforçam a importância do uso do CloudFormation para ambientes profissionais, especialmente quando se busca consistência, escalabilidade e facilidade de replicação em múltiplos projetos \cite{cantrill2023}.

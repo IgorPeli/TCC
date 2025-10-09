@@ -1,0 +1,123 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% introducao.tex
+%
+% Modelo de arquivo para uso com a classe uvvTeX2, para a formatação de
+% trabalhos acadêmicos na Universidade Vila Velha (https://uvv.br).
+%
+% Para maiores informações, visite:
+%    https://github.com/uvv-computacao/uvvtex2
+%
+% Este modelo mostra como inserir o capítulo de introdução de sua monografia.
+% Basta informar o título e o label da introdução, e escrever o conteúdo.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Introdução}
+\label{sec:intro}
+
+Tradicionalmente, a computação era realizada em infraestrutura interna, na qual a própria organização detinha total responsabilidade pelo processo de gerenciamento de sua infraestrutura de hardware e software. Nesse modelo, cabia à empresa comprar, instalar, gerir e manter seus recursos computacionais, além de garantir a segurança e a disponibilidade. Contudo, com essa abordagem, surgem adversidades, como um investimento com alto custo inicial, escalabilidade limitada, complexidade no gerenciamento, além de deixar a infraestrutura suscetível a falhas operacionais ou desastres naturais \cite{erecovery}. 
+
+A computação em nuvem, segundo definição do National Institute of Standards and Technology  (NIST), é um modelo que permite o acesso remoto, sob demanda e com flexibilidade a um conjunto compartilhado de recursos computacionais, como redes, servidores, armazenamento e aplicações, que podem ser rapidamente alocados e liberados com o mínimo de esforço de gerenciamento ou intervenção do provedor\cite{nist2011}. 
+
+Tal arquitetura tornou-se possível graças à virtualização, uma tecnologia que permite criar representações virtuais de recursos físicos, como máquinas, contêineres, bancos de dados e redes. Com essa abordagem, é possível executar múltiplas máquinas virtuais (VMs) em um único hardware físico. Cada VM opera de forma isolada, acreditando estar utilizando recursos físicos dedicados; no entanto, esses recursos são, na verdade, compartilhados entre diversas VMs. Essa técnica possibilita o aproveitamento otimizado da infraestrutura física, aumentando a eficiência, redução dos custos e a escalabilidade dos ambientes computacionais.  \cite{awsVirtualization}
+
+Atualmente, observa-se um número crescente de empresas que buscam soluções tecnológicas baseadas em arquiteturas de computação em nuvem, recorrendo a provedores como a Amazon Web Services (AWS).  Segundo a ISG Provider Lens Research, empresas brasileiras têm migrado para plataformas como a AWS, em busca dessas vantagens, como maior flexibilidade e eficiência \cite{businesswire2022aws}.
+Essa tendência está apoiada na necessidade de redução de custos, facilidade de manutenção, alta disponibilidade e escalabilidade \cite{aws2023vantagens}.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{O problema}
+\label{sec:intro:prob}
+
+Com a crescente adoção da computação em nuvem, percebe-se que, apesar das vantagens oferecidas, essa arquitetura também é acompanhada de algumas desvantagens. De acordo com a Google Cloud, entre os principais desafios estão os custos inesperados, a complexidade na integração com sistemas já existentes, dificultando a criação de uma arquitetura híbrida, e os riscos relacionados à segurança cibernética. No entanto, o próprio documento apresenta que muitos desses problemas podem ser evitados desde que haja uma compreensão clara dos serviços oferecidos pelos provedores,  e os modelos de cobranças\cite{google2024limites}.
+
+Com a crescente adoção da computação em nuvem, tem-se evidenciado, cada vez mais, a ausência de profissionais qualificados em arquitetura de nuvem. Estudos recentes apontam que 98\% das organizações mundiais estão enfrentando dificuldades para encontrar profissionais devidamente capacitados \cite{softwareone2024}.
+
+
+A seguir, a Tabela \ref{tab:comparativo-custos} apresenta um comparativo entre os dois modelos, destacando principalmente fatores decisivos, como custo, escalabilidade, flexibilidade e tempo de implantação. As informações foram baseadas em estimativas de mercado disponíveis em fontes especializadas \cite{tecnomega2024}.
+
+
+\begin{table}[H]
+\centering
+\caption{Comparativo de custos entre infraestrutura On-Premises e Computação em Nuvem}
+\label{tab:comparativo-custos}
+\begin{tabular}{|p{4cm}|p{6cm}|p{6cm}|}
+\hline
+\textbf{Item} & \textbf{On-Premises} & \textbf{Computação em Nuvem} \\
+\hline
+\textbf{Investimento Inicial} & 
+- Aquisição de servidores, storages, equipamentos de rede. \newline
+- Adaptação de espaço físico para data center. \newline
+- Licenças perpétuas de software. &
+- Custos iniciais geralmente inexistentes ou baixos (setup virtual). \\
+\hline
+\textbf{Custos Operacionais} & 
+- Manutenção contínua de hardware/software. \newline
+- Consumo elevado de energia elétrica e refrigeração. \newline
+- Custos com atualizações periódicas. &
+- Pagamento conforme o uso. \newline
+- Manutenção e atualizações inclusas. \newline
+- Escalabilidade automatizada.\\
+\hline
+\textbf{Segurança e Conformidade} & 
+- Total responsabilidade da empresa por políticas, firewalls e backups. &
+- Responsabilidade compartilhada com o provedor. \newline
+- Medidas robustas de segurança já implementadas. \\
+\hline
+\textbf{Escalabilidade} & Limitada: requer novo investimento em hardware. & Alta: ajustável conforme demanda sem aquisição física. \\
+\hline
+\textbf{Flexibilidade} & Baixa: alterações são demoradas e caras. & Alta: novos serviços e recursos com rápida implementação. \\
+\hline
+\textbf{Tempo de Implementação} & Longo: meses até completa operacionalização. & Curto: recursos disponíveis quase que imediatamente. \\
+\hline
+\end{tabular}
+\end{table}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Formulação do problema}
+\label{sec:intro:form_prob}
+Como projetar uma arquitetura em nuvem na AWS que ofereça segurança, alta disponibilidade e otimização de custos, com a ausência de profissionais qualificados?
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Hipótese}
+\label{sec:intro:hip}
+A disponibilização de um passo a passo estruturado e de fácil compreensão, fundamentado em boas práticas, permite que organizações com carência de profissionais qualificados implementem uma arquitetura segura, de baixo custo e alta disponibilidade na AWS.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Objetivos}
+\label{sec:intro:obj}
+
+
+
+\subsection{Objetivo geral}
+\label{sec:intro:obj:ger}
+
+Desenvolver uma arquitetura em nuvem utilizando os serviços da AWS que ofereça segurança, alta disponibilidade e otimização de custos, com base em boas práticas, de forma que possa ser replicada por múltiplas organizações, exigindo apenas ajustes mínimos conforme suas particularidades.
+
+\subsection{Objetivos específicos}
+\label{sec:intro:obj:esp}
+
+\begin{itemize}
+    \item Identificar os principais desafios enfrentados por organizações com baixa qualificação técnica na implementação de arquiteturas em nuvem.
+    \item Automatizar a criação da infraestrutura por meio do AWS CloudFormation, garantindo padronização e reprodutibilidade do ambiente.
+    \item Implementar a estrutura de rede, incluindo a criação de uma Virtual Private Cloud (VPC), sub-redes públicas e privadas distribuídas em múltiplas zonas de disponibilidade (AZs), e a configuração das Route Tables.
+     \item Projetar uma arquitetura escalável na AWS utilizando ECS com Fargate mode, baseada em uma imagem Docker personalizada.
+    \item Integrar o Amazon RDS como banco de dados gerenciado e o Amazon S3 como repositório de imagens da aplicação.
+    \item Definir estratégias de roteamento com Application Load Balancer (ALB) e configurar políticas de segurança com Security Groups (SGs) e Network ACLs (NACLs).
+    \item Estimar os custos da arquitetura implementada, comparando com modelos tradicionais e avaliando sua viabilidade.
+    \item Validar a replicabilidade da solução com foco em segurança, disponibilidade e otimização de custos, conforme as boas práticas da AWS.
+\end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Justificativa}
+\label{sec:intro:jus}
+A escolha do tema voltado à arquitetura em nuvem justifica-se pela crescente adoção desse modelo computacional, incentivado pela alta demanda das empresas por soluções escaláveis, econômicas e que possibilitem rápida implantação de aplicações e serviços. A computação em nuvem tem se consolidado como uma alternativa viável e estratégica frente às limitações das infraestruturas tradicionais, especialmente em ambientes que exigem agilidade e otimização de recursos.
+
+Como provedor de nuvem, optou-se pela Amazon Web Services (AWS), tanto por sua ampla participação e reconhecimento no mercado global, sendo referência entre os provedores, quanto pela familiaridade prévia do autor com os serviços da plataforma. A experiência adquirida ao longo de estudos e práticas anteriores contribuiu diretamente para a definição do escopo técnico do projeto e reforçou a viabilidade da proposta.
+

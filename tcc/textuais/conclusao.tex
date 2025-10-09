@@ -1,0 +1,86 @@
+\chapter{Conclusão}
+\label{sec:conclusao}
+
+\section{Necessidades do projeto}
+Para reproduzir a arquitetura proposta, recomenda-se conhecimento básico em redes e contêineres, já que é necessário dispor de uma imagem pronta para implantação. Com esses fundamentos, a solução pode ser ajustada conforme a aplicação: por exemplo, em cenários com front-end e back-end separados, é possível usar \textbf{um único ALB} com regra de roteamento (por caminho/host/porta) para direcionar o tráfego a \textit{target groups} distintos, ou optar por \textbf{dois ALBs}, um público para o front-end e outro interno para o back-end.
+
+
+\section{Implementação da Arquitetura}
+Toda a arquitetura foi implementada via IaC (Infraestrutura como Código), utilizando um template CloudFormation e uma imagem Docker personalizada. A imagem própria facilita a demonstração, pois expõe a estrutura do aplicativo e permite adaptar o conteúdo ao projeto de forma direta.
+
+A opção pelo CloudFormation tem como principais motivos:
+\begin{itemize}
+  \item Padronização do conteúdo;
+  \item Fácil replicação;
+  \item Redução de erros humanos;
+  \item Atualização e manutenção simplificadas dos componentes.
+\end{itemize}
+
+\section{Estimativa de custos (modelo de cálculo)}
+Abaixo segue um \textit{modelo} de tabela para estimar o custo mensal da solução \textit{na AWS} e uma visão equivalente \textit{on-premises} mensalizada. Os valores são apenas estipulações, variando de necessidade para necessidade.
+
+\begin{table}[H]
+\centering
+\caption{Custo mensal estimado — AWS (exemplo ilustrativo, \textbf{R\$})}
+\label{tab:custo-aws-brl}
+\begin{tabular}{|p{5cm}|p{7cm}|p{4cm}|}
+\hline
+\textbf{Componente} & \textbf{Hipótese de consumo} & \textbf{Estimativa (R\$/mês)} \\
+\hline
+ALB (Application Load Balancer) & 730 h + \(\sim\)1 LCU/h (tráfego baixo) & R\$~129 \\
+\hline
+ECS Fargate (2 tasks) & 2x (0{,}5 vCPU, 1 GB) por 730 h & R\$~192 \\
+\hline
+RDS MySQL (db.t4g.micro, Multi-AZ) & 730 h (ativo+standby) & R\$~125 \\
+\hline
+RDS Storage (gp3) & 20 GB & R\$~12 \\
+\hline
+S3 (mídias) & 20 GB + requests leves & R\$~2{,}45 \\
+\hline
+CloudWatch Logs & 1 GB ingerido/mês & R\$~2{,}67 \\
+\hline
+NAT Gateway & 730 h + 10 GB processados & R\$~177{,}5 \\
+\hline
+Data Transfer Out (Internet) & 10 GB/mês & R\$~4{,}80 \\
+\hline
+\multicolumn{2}{|r|}{\textbf{Total (com NAT)}} & \textbf{R\$~645} \\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+\begin{table}[H]
+\centering
+\caption{Custo mensal equivalente — On-Premises no Brasil (exemplo, \textbf{R\$})}
+\label{tab:custo-onprem-brl}
+\begin{tabular}{|p{5cm}|p{7cm}|p{4cm}|}
+\hline
+\textbf{Item} & \textbf{Hipótese (referências BR)} & \textbf{Mensal (R\$)} \\
+\hline
+Servidor (compute) & Dell PowerEdge T150 de entrada \(\sim\)R\$ 7{,}1 mil (amort. 36 meses) & \textbf{R\$ 197} \\
+\hline
+Armazenamento local & Discos/SSD inclusos básicos (já no T150) — extra conforme projeto & \textbf{—} \\
+\hline
+Energia elétrica (TI) & Ex.: 150 W médios \(\approx\) 108 kWh/mês; tarifa + bandeira (estim.) & \textbf{R\$ 117} \\
+\hline
+Resfriamento/overhead & Regra simples 1:1 com energia de TI (estim.) & \textbf{R\$ 117} \\
+\hline
+Link empresarial & Internet/Link dedicado: a partir de \textasciitilde R\$ 500–700/mês (30–50 Mb) & \textbf{R\$ 600} \\
+\hline
+Firewall/UTM & Fortigate 60F + licença UTP 12 meses \(\sim\)R\$ 5{,}538 (= R\$ 462/mês) & \textbf{R\$ 462} \\
+\hline
+Administração/Operação & 4–6 h/mês (estimativa conservadora) & \textbf{R\$ 1{,}000} \\
+\hline
+\multicolumn{2}{|r|}{\textbf{Total (on-premises)}} & \textbf{R\$ 2{,}493} \\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+\section{Considerações finais}
+A solução apresentada tem complexidade média, porém segue padrões claros que servem de apoio ao leitor. Com a leitura detalhada deste documento, é possível implantar uma arquitetura robusta, completa e segura, sem exigir estudo extensivo.
+
+Em suma, a arquitetura proposta atende a requisitos típicos de ambiente empresarial e pode ser implementada com conhecimentos básicos, conforme descrito no início do capítulo. Assim, o objetivo do trabalho foi alcançado.
+
