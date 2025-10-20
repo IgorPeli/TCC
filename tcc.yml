@@ -4,7 +4,7 @@ Description: Flask + ECS Fargate + ALB + RDS MySQL + S3 (uploads) via NAT + Endp
 Parameters:
   ECRImage:
     Type: String
-    Default: 296601444721.dkr.ecr.us-east-2.amazonaws.com/tcc/flask:latest
+    Default: 471112695892.dkr.ecr.us-east-2.amazonaws.com/tcc/flask:latest
 
   DBName:
     Type: String
