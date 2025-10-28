@@ -270,44 +270,44 @@ Resources:
         - !Sub tcc-flask-media-${AWS::AccountId}-${AWS::Region}
 
   MediaBucketPolicy:
-  Type: AWS::S3::BucketPolicy
-  Properties:
-    Bucket: !Ref MediaBucket
-    PolicyDocument:
-      Version: '2012-10-17'
-      Statement:
-        - Sid: DenyInsecureTransport
-          Effect: Deny
-          Principal: "*"
-          Action: "s3:*"
-          Resource:
-            - !Sub arn:aws:s3:::${MediaBucket}
-            - !Sub arn:aws:s3:::${MediaBucket}/*
-          Condition:
-            Bool:
-              aws:SecureTransport: false
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MediaBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub arn:aws:s3:::${MediaBucket}
+              - !Sub arn:aws:s3:::${MediaBucket}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
 
         
-        - Sid: AllowRootAccountFullAccess
-          Effect: Allow
-          Principal:
-            AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
-          Action: "s3:*"
-          Resource:
-            - !Sub arn:aws:s3:::${MediaBucket}
-            - !Sub arn:aws:s3:::${MediaBucket}/*
+          - Sid: AllowRootAccountFullAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: "s3:*"
+            Resource:
+              - !Sub arn:aws:s3:::${MediaBucket}
+              - !Sub arn:aws:s3:::${MediaBucket}/*
 
-        - Sid: AllowECSTaskAccess
-          Effect: Allow
-          Principal:
-            AWS: !GetAtt TaskExecutionRole.Arn 
-          Action:
-            - "s3:PutObject"
-            - "s3:GetObject"
-            - "s3:ListBucket"
-          Resource:
-            - !Sub arn:aws:s3:::${MediaBucket}
-            - !Sub arn:aws:s3:::${MediaBucket}/*
+          - Sid: AllowECSTaskAccess
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt ECSExecutionRole.Arn
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub arn:aws:s3:::${MediaBucket}
+              - !Sub arn:aws:s3:::${MediaBucket}/*
 
   # -------------------- ECS & IAM --------------------
   ECSCluster:
