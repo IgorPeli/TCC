@@ -276,8 +276,8 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: DenyInsecureTransport
-            Effect: Deny
+          - Sid: AllowTransport
+            Effect: Allow
             Principal: "*"
             Action: "s3:*"
             Resource:
