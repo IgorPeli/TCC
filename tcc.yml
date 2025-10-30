@@ -297,17 +297,6 @@ Resources:
               - !Sub arn:aws:s3:::${MediaBucket}
               - !Sub arn:aws:s3:::${MediaBucket}/*
 
-          - Sid: AllowECSTaskAccess
-            Effect: Allow
-            Principal:
-              AWS: !GetAtt ECSExecutionRole.Arn
-            Action:
-              - "s3:PutObject"
-              - "s3:GetObject"
-              - "s3:ListBucket"
-            Resource:
-              - !Sub arn:aws:s3:::${MediaBucket}
-              - !Sub arn:aws:s3:::${MediaBucket}/*
 
   # -------------------- ECS & IAM --------------------
   ECSCluster:
